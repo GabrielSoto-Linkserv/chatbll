@@ -7,7 +7,7 @@ const { v4: uuidv4 } = require('uuid');
 const cron = require('node-cron');
 const { getEmbeddings, getEmbeddingsLocal } = require('./embedding');
 const { queryLance } = require('./lanceDb');   
-const { callLLMWithFallback, generateLLMResponseGemini } = require('./llm'); 
+const { callLLMWithFallback, generateLLMResponseGemini, rerankChunks } = require('./llm'); 
 const { encoding_for_model } = require('tiktoken');
 const mysql = require('mysql2/promise');
 const enc = encoding_for_model('gpt-4');
@@ -77,10 +77,6 @@ db.run(`
       FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
   )
 `);
-
-function countTokens(text) {
-  return enc.encode(text).length;
-}
 
 app.post('/chat-history', async (req, res) => {
     const { sessionId } = req.body;
@@ -154,19 +150,40 @@ app.post('/user-sessions', async (req, res) => {
     
 });
 
+function countTokens(text) {
+  return enc.encode(text).length;
+}
+
 async function handleRAGQuery(query, sessionId) {
     const queryEmbedding = await getEmbeddingsLocal([query]);
     if (!queryEmbedding) {
         return "Falha ao gerar embedding para a pergunta.";
     }
 
-    const matches = await queryLance(queryEmbedding[0], 3, 0.4);
+    let matches = await queryLance(queryEmbedding[0], 10, 0.5);
 
     if (!matches.length) {
         return "Nenhum resultado relevante encontrado na base de conhecimento.";
     }
 
-    const context = matches.map(r => r.text).join("\n\n");
+  // Filtro inicial
+  matches = matches.filter(r => countTokens(r.text) >= 20);
+
+  // Reranking semântico
+  const rescored = await rerankChunks(query, matches);
+
+  // Selecionar até MAX_CONTEXT_SIZE
+  const selectedChunks = [];
+  let totalTokens = 0;
+
+  for (const chunk of rescored) {
+    const chunkTokens = countTokens(chunk.text);
+    if (totalTokens + chunkTokens > process.env.MAX_CONTEXT_SIZE) break;
+    selectedChunks.push(chunk);
+    totalTokens += chunkTokens;
+  }
+
+    const context = selectedChunks.map(r => r.text).join("\n\n");
 
     let formattedHistory = "";
     const HISTORY_LIMIT = 6;
@@ -281,7 +298,7 @@ app.post('/chat', async (req, res) => {
         }
 
         if (row?.question_count >= maxQst) {
-            return res.status(403).json({ error: `Limite de perguntas atingido. (${limit} perguntas diárias)` });
+            return res.status(403).json({ error: `Limite de perguntas atingido. (${maxQst} perguntas diárias)` });
         }
 
         try {
@@ -412,7 +429,8 @@ app.post('/login', (req, res) => {
 });
 
 // Atualizações CRON
-cron.schedule('0 0 * * *', () => {
+//Alterar para '0 0  * * *' após testes (equivale a 00:00 diariamente)
+cron.schedule('*/5 * * * *', () => {
   console.log('Executando reset diário dos contadores de perguntas...');
   
   const now = new Date().toISOString();

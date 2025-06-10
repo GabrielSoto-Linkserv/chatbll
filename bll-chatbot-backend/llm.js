@@ -1,6 +1,10 @@
 require('dotenv').config();
-const { OpenAI } = require('openai'); // Mantenha o import existente
-const { GoogleGenerativeAI } = require('@google/generative-ai'); // NOVO IMPORT
+const { OpenAI } = require('openai');
+const { GoogleGenerativeAI } = require('@google/generative-ai');
+const { pipeline } = require('@xenova/transformers');
+let reranker = null;
+
+
 
 // Cliente OpenAI existente
 const openai = new OpenAI({
@@ -89,8 +93,25 @@ async function callLLMWithFallback(query) {
     }
 }
 
+async function rerankChunks(query, chunks) {
+  if (!reranker) {
+    reranker = await pipeline('text-classification', 'Xenova/bge-reranker-base');
+  }
+
+  const rescored = await Promise.all(chunks.map(async (r) => {
+    const input = `${query} [SEP] ${r.text}`;
+    const result = await reranker(input, { topk: 1 });
+    const rerankScore = result[0].score;
+    return { ...r, rerankScore };
+  }));
+
+  // Ordena decrescente pelo score
+  return rescored.sort((a, b) => b.rerankScore - a.rerankScore);
+}
+
 module.exports = { 
     generateLLMResponse, 
     generateLLMResponseGemini,
-    callLLMWithFallback
+    callLLMWithFallback,
+    rerankChunks
 };

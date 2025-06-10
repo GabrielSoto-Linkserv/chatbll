@@ -133,7 +133,8 @@ async function queryLance(queryEmbedding, k = 3, similarityThreshold = 0.3) {
     } else {
       console.log(`[INFO] Correspondências acima do threshold (${similarityThreshold}):`);
       for (const r of filtered) {
-        console.log(`[✓] ID: ${r.id}, SIM: ${r.similarity.toFixed(4)} (DIST: ${r._distance.toFixed(4)})`);
+        const chunkText = r.text;
+        console.log(`[✓] ID: ${r.id}, SIM: ${r.similarity.toFixed(4)} (DIST: ${r._distance.toFixed(4)}), Chunk: "${chunkText}"`);
       }
     }
 

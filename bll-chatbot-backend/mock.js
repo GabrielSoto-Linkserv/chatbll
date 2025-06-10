@@ -19,7 +19,7 @@ const { queryLance , listarDocumentos, getLanceTable } = require('./lanceDb');
     console.log("[DEBUG] Norma do embedding:", norm.toFixed(6));
     console.log("[DEBUG] Embedding (5 primeiros valores):", consultaEmbedding.slice(0, 5));
 
-    const matches = await queryLance(consultaEmbedding, 3, 0.4);
+    const matches = await queryLance(consultaEmbedding, 20, 0.1);
 
     if (!matches.length) {
     console.log("[INFO] Nenhuma correspondência encontrada acima do threshold de similaridade.");
@@ -40,5 +40,5 @@ const { queryLance , listarDocumentos, getLanceTable } = require('./lanceDb');
     const docVector = Array.from(docVectorRaw); // converter para array normal
     console.log("[TESTE] Consulta com vetor real salvo:");
     const directMatch = await queryLance(docVector, 5);
-    console.log(directMatch.map(r => r.text.slice(0, 80)));
+    console.log(directMatch.map(r => r.text));
 })();

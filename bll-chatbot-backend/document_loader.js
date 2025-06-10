@@ -9,7 +9,7 @@ const { addDocumentsToLance } = require('./lanceDb');
 const {
     readTextFile,
     readMetadataFile,
-    chunkTextByTokenLocal
+    chunkTextByTokenLocal 
 } = require('./dataProcessing');
 
 async function runIngestion(directoryPath) {
@@ -44,7 +44,7 @@ async function runIngestion(directoryPath) {
                 console.log(`[DEBUG] Tipo do conteúdo do txt:`, typeof textContent);
                 console.log(`[DEBUG] Início do conteúdo:`, textContent.slice(0, 100));
 
-                const chunks = await chunkTextByTokenLocal(textContent, 150, 50);
+                const chunks = await chunkTextByTokenLocal(textContent, 250, 50);
                 const embeddings = await getEmbeddingsLocal(chunks);
 
                 console.log(">> Vetor exemplo (primeiros 5 valores):", embeddings[0]?.slice(0, 5));

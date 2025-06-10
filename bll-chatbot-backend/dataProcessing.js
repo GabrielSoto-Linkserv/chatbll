@@ -41,8 +41,6 @@ function chunkTextByToken(text, maxTokens = 500, chunkOverlapTokens = 50, modelN
     return chunks;
 }
 
-
-
 async function chunkTextByTokenLocal(text, maxTokens = 500, overlap = 50) {
     if (typeof text !== 'string') {
         throw new TypeError("Entrada para chunkTextByTokenLocal deve ser uma string");
@@ -71,4 +69,9 @@ async function chunkTextByTokenLocal(text, maxTokens = 500, overlap = 50) {
     return chunks;
 }
 
-module.exports = { readTextFile, readMetadataFile, chunkTextByToken, chunkTextByTokenLocal};
+module.exports = {
+    readTextFile,
+    readMetadataFile,
+    chunkTextByToken,
+    chunkTextByTokenLocal
+};

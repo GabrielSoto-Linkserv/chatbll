@@ -1,70 +1,42 @@
-# Getting Started with Create React App
+# Protótipo do ChatBot para BLL Compras
 
-This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
+Modelo de chatbot utilizando técnicas de RAG para vasculhar vetores de trechos relevantes de informação e assim gerar uma resposta legível via LLM.
+## Diretórios e Scripts
 
-## Available Scripts
+O projeto contém scripts relevantes nas seguintes pastas:
 
-In the project directory, you can run:
+### `./bll-chatbot`
 
-### `npm start`
+Diretório contendo o front-end da aplicação
 
-Runs the app in the development mode.\
-Open [http://localhost:3000](http://localhost:3000) to view it in your browser.
+#### `npm start`
 
-The page will reload when you make changes.\
-You may also see any lint errors in the console.
+Inicia o projeto no http://localhost:3000 para visualização em desenvolvimento.
 
-### `npm test`
+#### `npm run build`
 
-Launches the test runner in the interactive watch mode.\
-See the section about [running tests](https://facebook.github.io/create-react-app/docs/running-tests) for more information.
+Cria a build para produção, adicionando o projeto ao diretório `build`
 
-### `npm run build`
+### `./bll-chatbot-backend`
 
-Builds the app for production to the `build` folder.\
-It correctly bundles React in production mode and optimizes the build for the best performance.
+Diretório contendo o back-end da aplicação, toda a parte relacionada ao servidor, busca, banco vetorial e llm.
 
-The build is minified and the filenames include the hashes.\
-Your app is ready to be deployed!
+#### `npm run dev`
 
-See the section about [deployment](https://facebook.github.io/create-react-app/docs/deployment) for more information.
+Inicializa o servidor.
 
-### `npm run eject`
+#### ` npm run load -- path`
 
-**Note: this is a one-way operation. Once you `eject`, you can't go back!**
+Script para criar e alimentar o banco de vetores manualmente, permitindo assim controle direto sobre os arquivos que entram e o gasto de tokens para criá-lo. path deve ser uma string com o path do diretório onde os .pdf a serem utilizados se encontram. Por ex:  "..\chatbll\pythonUtils\output"
 
-If you aren't satisfied with the build tool and configuration choices, you can `eject` at any time. This command will remove the single build dependency from your project.
+### `./lanceDb`
 
-Instead, it will copy all the configuration files and the transitive dependencies (webpack, Babel, ESLint, etc) right into your project so you have full control over them. All of the commands except `eject` will still work, but they will point to the copied scripts so you can tweak them. At this point you're on your own.
+Diretório onde é armazenado o banco de vetores, contendo tabela criada pelo script `npm run load` do back-end.
 
-You don't have to ever use `eject`. The curated feature set is suitable for small and middle deployments, and you shouldn't feel obligated to use this feature. However we understand that this tool wouldn't be useful if you couldn't customize it when you are ready for it.
+### `./pythonUtils`
 
-## Learn More
+Diretório contendo as subpastas com arquivos pré processados e a com os resultados, além do próprio script que realiza a extração.
 
-You can learn more in the [Create React App documentation](https://facebook.github.io/create-react-app/docs/getting-started).
+#### `python main.py`
 
-To learn React, check out the [React documentation](https://reactjs.org/).
-
-### Code Splitting
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/code-splitting](https://facebook.github.io/create-react-app/docs/code-splitting)
-
-### Analyzing the Bundle Size
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size](https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size)
-
-### Making a Progressive Web App
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app](https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app)
-
-### Advanced Configuration
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/advanced-configuration](https://facebook.github.io/create-react-app/docs/advanced-configuration)
-
-### Deployment
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/deployment](https://facebook.github.io/create-react-app/docs/deployment)
-
-### `npm run build` fails to minify
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify](https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify)
+Script para extrair todo o conteúdo textual dos arquivos .pdf localizados na sub-pasta `./resource` e enviar para `./output` os textos e metadados de cada um.
