@@ -4,19 +4,14 @@ const { GoogleGenerativeAI } = require('@google/generative-ai');
 const { pipeline } = require('@xenova/transformers');
 let reranker = null;
 
-
-
-// Cliente OpenAI existente
 const openai = new OpenAI({
     apiKey: process.env.OPENAI_API_KEY,
 });
 
-// NOVO: Cliente GoogleGenerativeAI
 const genAI = new GoogleGenerativeAI(process.env.GOOGLE_API_KEY);
 
-const maxOut = parseInt(process.env.MAX_OUTPUT_TOKEN, 10) || 600;
+const maxOut = parseInt(process.env.MAX_OUTPUT_TOKEN, 10) || 500;
 
-// Método existente para OpenAI (NÃO ALTERADO)
 async function generateLLMResponse(query) {
     try {
         const response = await openai.chat.completions.create({
@@ -45,7 +40,6 @@ async function generateLLMResponse(query) {
     }
 }
 
-// NOVO MÉTODO: generateLLMResponseGemini para Google Gemini
 async function generateLLMResponseGemini(query) {
     query = "Instrução: Você é um assistente útil que responde de forma completa em no máximo 4 parágrafos curtos, com até 100 palavras cada, com base exclusivamente no contexto fornecido. Utilize o histórico da conversa, se relevante, para manter a coerência da interação, evite prolongar a resposta além do necessário.\n" + query;
     try {
@@ -105,7 +99,6 @@ async function rerankChunks(query, chunks) {
     return { ...r, rerankScore };
   }));
 
-  // Ordena decrescente pelo score
   return rescored.sort((a, b) => b.rerankScore - a.rerankScore);
 }
 

@@ -3,7 +3,7 @@ const path = require('path');
 const fs = require('fs').promises;
 const fsSync = require('fs');
 const {
-    getEmbeddingsLocal, // substituto local ao OpenAI
+    getEmbeddingsLocal,
 } = require('./embedding');
 const { addDocumentsToLance } = require('./lanceDb');
 const {
@@ -13,7 +13,7 @@ const {
 } = require('./dataProcessing');
 
 async function runIngestion(directoryPath) {
-    console.log("Iniciando o carregamento, embedding, chunking e armazenamento no LanceDB...");
+    console.log("[INFO] Iniciando o carregamento, embedding, chunking e armazenamento no LanceDB...");
     let successCount = 0;
     let failCount = 0;
 
@@ -36,7 +36,7 @@ async function runIngestion(directoryPath) {
                 const metadata = await readMetadataFile(metadataFilePath);
 
                 if (!textContent || typeof textContent !== 'string' || textContent.trim().length === 0) {
-                    console.error(`[FALHA] Conteúdo do arquivo de texto vazio ou inválido: ${file}`);
+                    console.error(`[ERRO] Conteúdo do arquivo de texto vazio ou inválido: ${file}`);
                     failCount++;
                     continue;
                 }
@@ -55,10 +55,10 @@ async function runIngestion(directoryPath) {
                     console.log(">> Metadata exemplo:", chunk_metadatas[0]);
 
                     await addDocumentsToLance(chunk_ids, embeddings, chunk_metadatas, chunks);
-                    console.log(`[SUCESSO] Processado e armazenado: ${file}`);
+                    console.log(`[INFO] Processado e armazenado: ${file}`);
                     successCount++;
                 } else {
-                    console.error(`[FALHA] Erro ao gerar embeddings para ${file}`);
+                    console.error(`[ERRO] Erro ao gerar embeddings para ${file}`);
                     failCount++;
                 }
             } catch (innerError) {
@@ -67,9 +67,9 @@ async function runIngestion(directoryPath) {
             }
         }
 
-        console.log(`\nProcesso concluído.\n Sucesso: ${successCount}\n Falhas: ${failCount}`);
+        console.log(`\n[INFO] Processo concluído.\n Sucesso: ${successCount}\n Falhas: ${failCount}`);
     } catch (outerError) {
-        console.error("Erro ao ler diretório:", outerError);
+        console.error("[ERRO] Erro ao ler diretório:", outerError);
         process.exit(1);
     }
 }
@@ -77,12 +77,12 @@ async function runIngestion(directoryPath) {
 const args = process.argv.slice(2);
 
 if (args.length === 0) {
-    console.error("Uso: npm run load -- <caminho_do_diretorio>");
+    console.error("[ERRO] Erro ao ler os args. Uso correto: npm run load -- <caminho_do_diretorio>");
     process.exit(1);
 }
 
 const targetDirectory = path.resolve(args[0]);
-console.log("[DEBUG] Caminho resolvido:", targetDirectory);
+console.log("[DEBUG] Caminho do diretório:", targetDirectory);
 
 if (!fsSync.existsSync(targetDirectory)) {
     console.error(`[ERRO] Diretório não encontrado: ${targetDirectory}`);
@@ -90,6 +90,6 @@ if (!fsSync.existsSync(targetDirectory)) {
 }
 
 runIngestion(targetDirectory).catch(err => {
-    console.error("Erro fatal na ingestão:", err);
+    console.error("[ERRO] Erro fatal na ingestão:", err);
     process.exit(1);
 });

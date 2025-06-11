@@ -5,7 +5,7 @@ import json
 import re
 
 '''
-    Versão atual está configurada para extrair texto e metadata do pdf para arquivos respectios, para o caso do texto,
+    Versão atual está configurada para extrair texto e metadata do pdf para arquivos respectivos, para o caso do texto,
 limpando caracteres indesejados e formatando para respeitar um certo grau de paragrafos.
     Funcionamento através de path hardcoded para indicar pasta de entrada + pasta de saida, extrai todos os docs .pdf 
 que encontrar na pasta de entrada. A filtragem dos dados é feita através de pymupdf e a formatação através de regex.

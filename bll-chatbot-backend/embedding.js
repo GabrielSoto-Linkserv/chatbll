@@ -1,16 +1,13 @@
-// embedding.js
 const OpenAI = require('openai');
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
-let extractor = null; // Mantém o pipeline carregado na memória
+let extractor = null;
 
 function normalizeVector(vec) {
     const norm = Math.sqrt(vec.reduce((sum, val) => sum + val * val, 0));
     return vec.map(val => val / norm);
 }
 
-
-// Função para gerar embeddings com OpenAI
 async function getEmbeddings(texts) {
     try {
         const response = await openai.embeddings.create({
@@ -25,14 +22,11 @@ async function getEmbeddings(texts) {
     }
 }
 
-// Função para gerar embeddings localmente com transformers.js
 async function getEmbeddingsLocal(texts) {
     try {
-        // Lazy load do pipeline
         if (!extractor) {
             const { pipeline } = await import('@xenova/transformers');
             extractor = await pipeline('feature-extraction', 'Xenova/all-MiniLM-L6-v2');
-
         }
 
         const results = [];

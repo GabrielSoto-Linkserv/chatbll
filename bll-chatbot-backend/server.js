@@ -12,7 +12,7 @@ const { encoding_for_model } = require('tiktoken');
 const mysql = require('mysql2/promise');
 const enc = encoding_for_model('gpt-4');
 const app = express();
-const port = 5000;
+const port = parseInt(process.env.PORT, 10) || 5000;;
 const maxInput = parseInt(process.env.MAX_INPUT_TOKENS, 10) || 8000;
 const maxMsg = parseInt(process.env.MAX_MSG_TOKENS, 10) || 300;
 const maxQst = parseInt(process.env.MAX_QUESTIONS, 10) || 5;
@@ -23,9 +23,9 @@ app.use(express.json());
 // Setup SQLite database
 const db = new sqlite3.Database('./chatbot_db.sqlite3', (err) => {
   if (err) {
-    console.error('Erro ao criar o banco:', err);
+    console.error('[ERRO] Erro ao criar o banco:', err);
   } else {
-    console.log('Conexão estabelecida com sucesso com banco de dados.');
+    console.log('[INFO] Conexão estabelecida com sucesso com banco de dados.');
   }
 });
 
@@ -43,11 +43,11 @@ const db = new sqlite3.Database('./chatbot_db.sqlite3', (err) => {
 
 // pool.getConnection()
 //   .then(connection => {
-//     console.log('Conexão estabelecida com sucesso com banco de dados MySQL.');
+//     console.log('[INFO] Conexão estabelecida com sucesso com banco de dados MySQL.');
 //     connection.release();
 //   })
 //   .catch(err => {
-//     console.error('Erro ao conectar ao banco de dados MySQL:', err);
+//     console.error('[ERRO] Erro ao conectar ao banco de dados MySQL:', err);
 //     process.exit(1);
 //   });
 
@@ -80,20 +80,19 @@ db.run(`
 
 app.post('/chat-history', async (req, res) => {
     const { sessionId } = req.body;
-    console.log("TESTE BACKEND:",req.body)
 
     if (!sessionId) {
       return res.status(400).json({ error: 'Erro ao recuperar o ID de sessão.' });
     }
 
-    console.log(sessionId)
+    console.log("[INFO] sessionId = ",sessionId)
 
     db.all(
       'SELECT role, content, timestamp FROM session_messages WHERE session_id = ? ORDER BY timestamp ASC',
       [sessionId],
       (err, rows) => {
           if (err) {
-              console.error('Erro ao carregar o histórico da conversa:', err);
+              console.error('[ERRO] Erro ao carregar o histórico da conversa:', err);
               return res.status(500).json({ error: 'Erro ao carregar o histórico da conversa.' });
           }
           res.json(rows);
@@ -107,7 +106,7 @@ app.post('/chat-history', async (req, res) => {
     //  );
     //  res.json(rows);
     // } catch(err){
-    //   console.error('Erro ao carregar o histórico da conversa:', err);
+    //   console.error('[ERRO] Erro ao carregar o histórico da conversa:', err);
     //   return res.status(500).json({ error: 'Erro ao carregar o histórico da conversa.' });
     // }
 });
@@ -133,7 +132,7 @@ app.post('/user-sessions', async (req, res) => {
 
     db.all(query, [userId], (err, rows) => {
         if (err) {
-            console.error('Failed to retrieve sessions:', err);
+            console.error('[ERRO] Failed to retrieve sessions:', err);
             return res.status(500).json({ error: 'Erro ao recuperar as sessões existentes do usuário.' });
         }
 
@@ -144,7 +143,7 @@ app.post('/user-sessions', async (req, res) => {
   //   const [rows] = await pool.execute(query, [userId]);
   //   res.json(rows);
   // } catch (err) {
-  //   console.error('Erro ao recuperar as sessões existentes do usuário:', err);
+  //   console.error('[ERRO] Erro ao recuperar as sessões existentes do usuário:', err);
   //   return res.status(500).json({ error: 'Erro ao recuperar as sessões existentes do usuário.' });
   // }
     
@@ -194,7 +193,7 @@ async function handleRAGQuery(query, sessionId) {
                 [sessionId, HISTORY_LIMIT],
                 (err, rows) => {
                     if (err) {
-                        console.error('Erro ao buscar histórico:', err);
+                        console.error('[ERRO] Erro ao buscar histórico:', err);
                         reject(err);
                         return;
                     }
@@ -211,11 +210,11 @@ async function handleRAGQuery(query, sessionId) {
       //   );
       //   formattedHistory = historyRows.reverse().map(row => `${row.role}: ${row.content}`).join('\n');
       // } catch (err) {
-      //   console.error('Erro ao buscar histórico no RAG query:', err);
+      //   console.error('[ERRO] Erro ao buscar histórico no RAG query:', err);
       // }
     }
 
-    const promptForGeminiRAG = [
+    const promptForLLM = [
         "CONTEXTO:",
         "\"\"\"",
         context,
@@ -228,13 +227,15 @@ async function handleRAGQuery(query, sessionId) {
         "Resposta:",
     ].join("\n").trim();
 
-    if ((countTokens(promptForGeminiRAG) + countTokens(query)) > maxInput){
-        console.log(`Tokens de prompt: ${countTokens(promptForGeminiRAG)} | Tokens da query:${countTokens(query)}`)
-        console.log("A soma total do Input ultrapassa o limite de tokens da janela de contexto do modelo");
+    const countPrompt = countTokens(promptForLLM);
+    const countQuery = countTokens(query);
+    console.log(`[INFO] Tokens de prompt: ${countPrompt} | Tokens da query:${countQuery}`)
+    if ((countPrompt + countQuery) > maxInput){
+        console.log("[WARNING] A soma total do Input ultrapassa o limite de tokens da janela de contexto do modelo");
     }
 
-    return await generateLLMResponseGemini(promptForGeminiRAG);
-    // return await callLLMWithFallback(promptForGeminiRAG);
+    return await generateLLMResponseGemini(promptForLLM);
+    // return await callLLMWithFallback(promptForLLM);
 }
 
 
@@ -286,14 +287,14 @@ app.post('/chat', async (req, res) => {
   //   res.json({ response: botResponse, sessionId: currentSessionId });
 
   // } catch (error) {
-  //   console.error('Erro ao processar mensagem no chat:', error);
+  //   console.error('[ERRO] Erro ao processar mensagem no chat:', error);
   //   res.status(500).json({ error: 'Falha ao gerar resposta.' });
   // }
 
     // Passo 1: Verifica se o usuário atingiu o limite
     db.get('SELECT question_count FROM users WHERE id = ?', [userId], async (err, row) => {
         if (err) {
-            console.error('Erro ao buscar contador:', err);
+            console.error('[ERRO] Erro ao buscar contador:', err);
             return res.status(500).json({ error: 'Erro interno ao verificar limite.' });
         }
 
@@ -319,7 +320,7 @@ app.post('/chat', async (req, res) => {
                 [currentSessionId, userId, 'user', userMessage],
                 (err) => {
                     if (err) {
-                        console.error('Erro ao salvar mensagem do usuário:', err);
+                        console.error('[ERRO] Erro ao salvar mensagem do usuário:', err);
                     }
                 }
             );
@@ -330,7 +331,7 @@ app.post('/chat', async (req, res) => {
                 [currentSessionId, userId, 'model', botResponse],
                 (err) => {
                     if (err) {
-                        console.error('Erro ao salvar resposta do bot:', err);
+                        console.error('[ERRO] Erro ao salvar resposta do bot:', err);
                     }
                 }
             );
@@ -341,7 +342,7 @@ app.post('/chat', async (req, res) => {
                 [userId],
                 (err) => {
                     if (err) {
-                        console.error('Erro ao incrementar contador:', err);
+                        console.error('[ERRO] Erro ao incrementar contador:', err);
                     }
                 }
             );
@@ -349,7 +350,7 @@ app.post('/chat', async (req, res) => {
             res.json({ response: botResponse, sessionId: currentSessionId });
 
         } catch (error) {
-            console.error('Erro ao processar mensagem:', error);
+            console.error('[ERRO] Erro ao processar mensagem:', error);
             res.status(500).json({ error: 'Falha ao gerar resposta.' });
         }
     });
@@ -377,7 +378,7 @@ app.post('/register', async (req, res) => {
         if (err.code === 'SQLITE_CONSTRAINT') {
           res.status(400).json({ error: 'Email já registrado.' });
         } else {
-          console.error('Database error:', err);
+          console.error('[ERRO] Database error:', err);
           res.status(500).json({ error: 'Falha ao registrar.' });
         }
       } else {
@@ -387,7 +388,7 @@ app.post('/register', async (req, res) => {
 
     stmt.finalize();
   } catch (error) {
-    console.error('Hashing or DB error:', error);
+    console.error('[ERRO] Hashing or DB error:', error);
     res.status(500).json({ error: 'Erro interno no servidor.' });
   }
 });
@@ -403,7 +404,7 @@ app.post('/login', (req, res) => {
   const query = 'SELECT * FROM users WHERE email = ?';
   db.get(query, [email], async (err, user) => {
     if (err) {
-      console.error('Erro ao acessar o banco de dados para login:', err);
+      console.error('[ERRO] Erro ao acessar o banco de dados para login:', err);
       return res.status(500).json({ error: 'Erro no servidor.' });
     }
 
@@ -422,7 +423,7 @@ app.post('/login', (req, res) => {
       res.json({ id, firstName, lastName, department, email });
 
     } catch (error) {
-      console.error('Error comparing password:', error);
+      console.error('[ERRO] Error comparing password:', error);
       res.status(500).json({ error: 'Erro interno ao realizar o login.' });
     }
   });
@@ -439,9 +440,9 @@ cron.schedule('*/5 * * * *', () => {
     [now],
     (err) => {
       if (err) {
-        console.error('Erro ao resetar limites de perguntas:', err);
+        console.error('[ERRO] Erro ao resetar limites de perguntas:', err);
       } else {
-        console.log('Limites de perguntas resetados com sucesso.');
+        console.log('[INFO] Limites de perguntas resetados com sucesso.');
       }
     }
   );
@@ -449,5 +450,5 @@ cron.schedule('*/5 * * * *', () => {
 
 // Listening
 app.listen(port, () => {
-  console.log(`Server running on port ${port}`);
+  console.log(`[INFO] Server running on port ${port}`);
 });

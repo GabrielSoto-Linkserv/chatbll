@@ -9,7 +9,7 @@ async function readTextFile(filePath) {
         const content = await fs.readFile(filePath, 'utf-8');
         return content;
     } catch (error) {
-        console.error(`Erro ao ler o arquivo ${filePath}:`, error);
+        console.error(`[ERRO] Erro ao ler o arquivo ${filePath}:`, error);
         return null;
     }
 }
@@ -19,7 +19,7 @@ async function readMetadataFile(filePath) {
         const content = await fs.readFile(filePath, 'utf-8');
         return JSON.parse(content);
     } catch (error) {
-        console.error(`Erro ao ler o arquivo de metadados ${filePath}:`, error);
+        console.error(`[ERRO] Erro ao ler o arquivo de metadados ${filePath}:`, error);
         return {};
     }
 }
@@ -43,7 +43,7 @@ function chunkTextByToken(text, maxTokens = 500, chunkOverlapTokens = 50, modelN
 
 async function chunkTextByTokenLocal(text, maxTokens = 500, overlap = 50) {
     if (typeof text !== 'string') {
-        throw new TypeError("Entrada para chunkTextByTokenLocal deve ser uma string");
+        throw new TypeError("[ERRO] Entrada para chunkTextByTokenLocal deve ser uma string");
     }
 
     if (!tokenizer) {

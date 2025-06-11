@@ -71,7 +71,7 @@ async function addDocumentsToLance(ids, embeddings, metadatas, documents) {
     await table.add(records);
   }
 
-  console.log('Dados adicionados ao LanceDB com sucesso!');
+  console.log('[INFO] Dados adicionados ao LanceDB com sucesso!');
 }
 
 async function queryLance(queryEmbedding, k = 3, similarityThreshold = 0.3) {
@@ -81,13 +81,13 @@ async function queryLance(queryEmbedding, k = 3, similarityThreshold = 0.3) {
     try {
       queryEmbedding = Array.from(queryEmbedding);
     } catch {
-      throw new TypeError("queryEmbedding precisa ser um array ou iterable convertível.");
+      throw new TypeError("[ERRO] queryEmbedding precisa ser um array ou iterable convertível.");
     }
   }
 
   const table = await getLanceTable();
   if (!table) {
-    throw new Error('Tabela LanceDB não encontrada.');
+    throw new Error('[ERRO] Tabela LanceDB não encontrada.');
   }
 
   try {
@@ -95,18 +95,18 @@ async function queryLance(queryEmbedding, k = 3, similarityThreshold = 0.3) {
     const vectorField = schema.fields.find(f => f.name === 'vector');
 
     if (!vectorField || !vectorField.type.listSize) {
-      throw new Error('A coluna "vector" não está definida corretamente no schema.');
+      throw new Error('[ERRO] A coluna "vector" não está definida corretamente no schema.');
     }
 
     const expectedDim = vectorField.type.listSize;
 
     if (queryEmbedding.length !== expectedDim) {
-      throw new Error(`Dimensão do embedding incorreta. Esperado: ${expectedDim}, recebido: ${queryEmbedding.length}`);
+      throw new Error(`[ERRO] Dimensão do embedding incorreta. Esperado: ${expectedDim}, recebido: ${queryEmbedding.length}`);
     }
 
     const norm = l2Norm(queryEmbedding);
-    console.log("Norma do vetor de consulta:", norm.toFixed(6));
-    console.log("[DEBUG] Vetor da consulta (primeiros 5 valores):", queryEmbedding.slice(0, 5));
+    console.log("[DEBUG] Norma do vetor da query:", norm.toFixed(6));
+    console.log("[DEBUG] Vetor da query (primeiros 5 valores):", queryEmbedding.slice(0, 5));
 
     // Realiza a busca
     const rawResults = await table.search(queryEmbedding)
@@ -116,7 +116,7 @@ async function queryLance(queryEmbedding, k = 3, similarityThreshold = 0.3) {
 
     // Log de todos os resultados
     // for (const row of rawResults) {
-    //   console.log(`[MATCH] ID: ${row.id}, DIST: ${row._distance}`);
+    //   console.log(`[DEBUG] ID: ${row.id}, DIST: ${row._distance}`);
     // }
 
     // Converte distância para similaridade
@@ -134,7 +134,7 @@ async function queryLance(queryEmbedding, k = 3, similarityThreshold = 0.3) {
       console.log(`[INFO] Correspondências acima do threshold (${similarityThreshold}):`);
       for (const r of filtered) {
         const chunkText = r.text;
-        console.log(`[✓] ID: ${r.id}, SIM: ${r.similarity.toFixed(4)} (DIST: ${r._distance.toFixed(4)}), Chunk: "${chunkText}"`);
+        console.log(`[INFO] ID: ${r.id}, SIM: ${r.similarity.toFixed(4)} (DIST: ${r._distance.toFixed(4)}), Chunk: "${chunkText}"`);
       }
     }
 
