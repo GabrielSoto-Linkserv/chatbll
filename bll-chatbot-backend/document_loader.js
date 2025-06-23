@@ -2,18 +2,26 @@ require('dotenv').config();
 const path = require('path');
 const fs = require('fs').promises;
 const fsSync = require('fs');
+
 const {
+    getEmbeddingsInBatches,
     getEmbeddingsLocal,
 } = require('./embedding');
+
 const { addDocumentsToLance } = require('./lanceDb');
 const {
     readTextFile,
     readMetadataFile,
-    chunkTextByTokenLocal 
+    chunkTextByTokenLocal,
+    chunkTextByToken,
 } = require('./dataProcessing');
 
-async function runIngestion(directoryPath) {
-    console.log("[INFO] Iniciando o carregamento, embedding, chunking e armazenamento no LanceDB...");
+// Função principal
+async function runIngestion(directoryPath, tableName, useOpenAI) {
+    console.log("[INFO] Iniciando carregamento e armazenamento no LanceDB...");
+    console.log(`[INFO] Fonte dos embeddings: ${useOpenAI ? "OpenAI (pago)" : "MiniLM local (gratuito)"}`);
+    console.log(`[INFO] Tabela: ${tableName}`);
+
     let successCount = 0;
     let failCount = 0;
 
@@ -22,7 +30,7 @@ async function runIngestion(directoryPath) {
         const textFiles = files.filter(file => file.endsWith('_text_only.txt'));
 
         if (textFiles.length === 0) {
-            console.warn("[AVISO] Nenhum arquivo _text_only.txt encontrado no diretório.");
+            console.warn("[AVISO] Nenhum arquivo _text_only.txt encontrado.");
             return;
         }
 
@@ -36,60 +44,64 @@ async function runIngestion(directoryPath) {
                 const metadata = await readMetadataFile(metadataFilePath);
 
                 if (!textContent || typeof textContent !== 'string' || textContent.trim().length === 0) {
-                    console.error(`[ERRO] Conteúdo do arquivo de texto vazio ou inválido: ${file}`);
+                    console.error(`[ERRO] Arquivo de texto inválido: ${file}`);
                     failCount++;
                     continue;
                 }
 
-                console.log(`[DEBUG] Tipo do conteúdo do txt:`, typeof textContent);
-                console.log(`[DEBUG] Início do conteúdo:`, textContent.slice(0, 100));
+                console.log(`[INFO] Inciando processo de chunking () para o arquivo: ${file}`);
+                const chunks = useOpenAI
+                    ? await chunkTextByToken(textContent, 250, 50, 'text-embedding-3-small')
+                    : await chunkTextByTokenLocal(textContent, 250, 50);
+                    
+                console.log("[INFO] Processo de chunking finalizado para o arquivo:", file);
 
-                const chunks = await chunkTextByTokenLocal(textContent, 250, 50);
-                const embeddings = await getEmbeddingsLocal(chunks);
+                const sanitizedChunks = chunks.filter(c => typeof c === 'string' && c.trim().length > 0).filter(c => c.split(/\s+/).length >= 3);;
 
-                console.log(">> Vetor exemplo (primeiros 5 valores):", embeddings[0]?.slice(0, 5));
+                const embedder = useOpenAI ? getEmbeddingsInBatches : getEmbeddingsLocal;
+                const embeddings = await embedder(sanitizedChunks);
 
                 if (embeddings && embeddings.length === chunks.length) {
-                    const chunk_ids = chunks.map((_, index) => `${baseName}_chunk_${index}`);
+                    const chunk_ids = chunks.map((_, i) => `${baseName}_chunk_${i}`);
                     const chunk_metadatas = chunks.map(() => metadata);
-                    console.log(">> Metadata exemplo:", chunk_metadatas[0]);
 
-                    await addDocumentsToLance(chunk_ids, embeddings, chunk_metadatas, chunks);
-                    console.log(`[INFO] Processado e armazenado: ${file}`);
+                    await addDocumentsToLance(chunk_ids, embeddings, chunk_metadatas, chunks, tableName);
+                    console.log(`[INFO] Armazenado com sucesso: ${file}`);
                     successCount++;
                 } else {
-                    console.error(`[ERRO] Erro ao gerar embeddings para ${file}`);
+                    console.error(`[ERRO] Falha ao gerar embeddings para ${file}`);
                     failCount++;
                 }
-            } catch (innerError) {
-                console.error(`[ERRO] Falha ao processar ${file}:`, innerError);
+            } catch (err) {
+                console.error(`[ERRO] Processando ${file}:`, err);
                 failCount++;
             }
         }
 
-        console.log(`\n[INFO] Processo concluído.\n Sucesso: ${successCount}\n Falhas: ${failCount}`);
-    } catch (outerError) {
-        console.error("[ERRO] Erro ao ler diretório:", outerError);
+        console.log(`\n[RESUMO] Sucesso: ${successCount}, Falhas: ${failCount}`);
+    } catch (err) {
+        console.error("[ERRO] Erro ao ler diretório:", err);
         process.exit(1);
     }
 }
 
+// CLI: processa argumentos
 const args = process.argv.slice(2);
-
-if (args.length === 0) {
-    console.error("[ERRO] Erro ao ler os args. Uso correto: npm run load -- <caminho_do_diretorio>");
+if (args.length < 1) {
+    console.error("[ERRO] Uso: npm run load -- <caminho_diretorio> [nome_tabela] [--openai | --local]");
     process.exit(1);
 }
 
 const targetDirectory = path.resolve(args[0]);
-console.log("[DEBUG] Caminho do diretório:", targetDirectory);
+const tableName = args[1] || 'rag_content';
 
 if (!fsSync.existsSync(targetDirectory)) {
     console.error(`[ERRO] Diretório não encontrado: ${targetDirectory}`);
     process.exit(1);
 }
 
-runIngestion(targetDirectory).catch(err => {
-    console.error("[ERRO] Erro fatal na ingestão:", err);
+const useOpenAI = args.includes('--openai');
+runIngestion(targetDirectory, tableName, useOpenAI).catch(err => {
+    console.error("[ERRO] Falha na ingestão:", err);
     process.exit(1);
 });

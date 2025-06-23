@@ -6,7 +6,6 @@ const { getEmbeddingsLocal } = require('./embedding');
 
 const dbPath = path.join(__dirname, '../lancedb');
 let db;
-let table;
 
 async function getDb() {
   if (!db) {
@@ -15,22 +14,28 @@ async function getDb() {
   return db;
 }
 
-async function getLanceTable() {
-  if (!table) {
+const tableCache = new Map();
+
+async function getLanceTable(tableName = 'rag_content') {
+  if (!tableCache.has(tableName)) {
     const db = await getDb();
     try {
-      table = await db.openTable('rag_content');
+      const openedTable = await db.openTable(tableName);
+      tableCache.set(tableName, openedTable);
     } catch (e) {
-      table = null;
+      console.error(`[ERRO] Não foi possível abrir a tabela "${tableName}":`, e);
+      return null;
     }
   }
-  return table;
+  return tableCache.get(tableName);
 }
 
-async function addDocumentsToLance(ids, embeddings, metadatas, documents) {
+
+async function addDocumentsToLance(ids, embeddings, metadatas, documents, tableName = 'rag_content') {
   const db = await getDb();
 
   const vectorDimension = embeddings[0]?.length;
+  console.log(`[INFO] Dimensão do vetor: ${vectorDimension}, tabela: ${tableName}`);
   if (!vectorDimension || vectorDimension <= 0) {
     throw new Error("A dimensão do vetor não pôde ser determinada ou é inválida.");
   }
@@ -56,25 +61,28 @@ async function addDocumentsToLance(ids, embeddings, metadatas, documents) {
     new arrow.Field('metadata', new arrow.Utf8()),
   ]);
 
-  if (!table) {
-    // Cria tabela e índice só uma vez
-    table = await db.createTable('rag_content', records, {
-      schema,
-      index: {
-        type: "vector",
-        column: "vector",
-        metric: "cosine"
-      }
-    });
-  } else {
-    // Só adiciona registros novos
+  let table;
+  try {
+    table = await db.openTable(tableName);
     await table.add(records);
+    } catch (e) {
+      if (e.message.includes("Table does not exist") || e.message.includes("not found")) {
+        table = await db.createTable(tableName, records, {
+        schema,
+        index: { type: "vector", column: "vector", metric: "cosine" }
+        });
+      } else {
+        console.error(`[ERRO] Falha ao abrir ou criar tabela "${tableName}":`, e);
+        throw e;
+      }
   }
+
 
   console.log('[INFO] Dados adicionados ao LanceDB com sucesso!');
 }
 
-async function queryLance(queryEmbedding, k = 3, similarityThreshold = 0.3) {
+async function queryLance(queryEmbedding, k = 3, similarityThreshold = 0.3, tableName = 'rag_content') {
+  console.log(`[DEBUG] QueryEmbedding dims: ${queryEmbedding.length}, table: ${tableName}`);
   console.log("[DEBUG] Consulta - dimensão do vetor:", queryEmbedding.length);
 
   if (!Array.isArray(queryEmbedding)) {
@@ -85,7 +93,7 @@ async function queryLance(queryEmbedding, k = 3, similarityThreshold = 0.3) {
     }
   }
 
-  const table = await getLanceTable();
+  const table = await getLanceTable(tableName);
   if (!table) {
     throw new Error('[ERRO] Tabela LanceDB não encontrada.');
   }

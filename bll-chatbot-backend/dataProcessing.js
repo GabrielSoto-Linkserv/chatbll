@@ -29,15 +29,22 @@ function chunkTextByToken(text, maxTokens = 500, chunkOverlapTokens = 50, modelN
     const tokens = encoding.encode(text);
     const chunks = [];
     let i = 0;
+
     while (i < tokens.length) {
         const end = Math.min(i + maxTokens, tokens.length);
-        chunks.push(encoding.decode(tokens.slice(i, end)));
-        if (end === tokens.length) {
-            break;
-        }
-        i = end - chunkOverlapTokens;
+        const tokenSlice = tokens.slice(i, end);
+        const decodedBytes = encoding.decode(tokenSlice);
+        const chunkText = new TextDecoder("utf-8").decode(decodedBytes);
+        chunks.push(chunkText);
+
+        if (end === tokens.length) break;
+        i = Math.max(0, end - chunkOverlapTokens);
     }
+
     encoding.free();
+
+    console.log("[DEBUG] Total chunks:", chunks.length);
+    console.log("[DEBUG] Primeiro chunk:", chunks[0]?.slice(0, 100));
     return chunks;
 }
 
@@ -65,6 +72,9 @@ async function chunkTextByTokenLocal(text, maxTokens = 500, overlap = 50) {
 
         start += maxTokens - overlap;
     }
+    
+    console.log("[DEBUG] Total chunks:", chunks.length);
+    console.log("[DEBUG] Primeiro chunk:", chunks[0]?.slice(0, 100));
 
     return chunks;
 }

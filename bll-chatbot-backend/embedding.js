@@ -1,3 +1,4 @@
+require('dotenv').config();
 const OpenAI = require('openai');
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
@@ -48,7 +49,19 @@ async function getEmbeddingsLocal(texts) {
     }
 }
 
+async function getEmbeddingsInBatches(chunks, batchSize = 50) {
+    const allEmbeddings = [];
+    for (let i = 0; i < chunks.length; i += batchSize) {
+        const batch = chunks.slice(i, i + batchSize);
+        const batchEmbeddings = await getEmbeddings(batch);
+        allEmbeddings.push(...batchEmbeddings);
+    }
+    return allEmbeddings;
+}
+
+
 module.exports = {
     getEmbeddings,
-    getEmbeddingsLocal
+    getEmbeddingsLocal,
+    getEmbeddingsInBatches
 };

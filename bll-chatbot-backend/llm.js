@@ -19,16 +19,16 @@ async function generateLLMResponse(query) {
             messages: [
                 {
                     role: "system",
-                    content: "Você é um assistente útil que responde de forma completa em no máximo 4 parágrafos curtos, com até 100 palavras cada, com base exclusivamente no contexto fornecido. Utilize o histórico da conversa, se relevante, para manter a coerência da interação, evite prolongar a resposta além do necessário."
+                    content: "Responda com base exclusivamente no contexto fornecido, de forma completa e em no máximo 4 parágrafos curtos, com ate 100 palavras. Caso não encontre a informação no texto, responda 'Informação não encontrada'. Utilize o histórico da conversa, se relevante, para manter a coerência da interação."
                 },
                 {
                     role: "user",
                     content: query
                 }
             ],
-            temperature: 0.3,
-            top_p: 1,
-            max_output_tokens: maxOut,
+            temperature: 0.1,
+            top_p: 1.0,
+            max_tokens: maxOut,
             frequency_penalty: 0.0,
             presence_penalty: 0.0,
         });
@@ -41,7 +41,7 @@ async function generateLLMResponse(query) {
 }
 
 async function generateLLMResponseGemini(query) {
-    query = "Instrução: Você é um assistente útil que responde de forma completa em no máximo 4 parágrafos curtos, com até 100 palavras cada, com base exclusivamente no contexto fornecido. Utilize o histórico da conversa, se relevante, para manter a coerência da interação, evite prolongar a resposta além do necessário.\n" + query;
+    query = "Instrução: Responda com base exclusivamente no contexto fornecido, de forma completa e em no máximo 4 parágrafos curtos, com ate 100 palavras. Caso não encontre a informação no texto, responda 'Informação não encontrada'. Utilize o histórico da conversa, se relevante, para manter a coerência da interação.\n" + query;
     try {
         const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash-lite" });
 
